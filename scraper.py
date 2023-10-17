@@ -55,14 +55,17 @@ def extract_links_from_url(url):
 
     return internal_links, external_links
 
-def save_to_csv(urls):
+def save_to_csv_and_check_external(urls):
     """
     Visit each URL, check the HTTP response code, extract internal and external links, 
-    and save the URLs and response codes to a CSV file.
+    save internal links to URLs.csv and external links to EXTERNAL.csv. 
+    Then check HTTP response codes for external links and update EXTERNAL.csv.
     """
+    external_links_list = []
+
     with open("URLs.csv", "w", newline='') as csvfile:
         csvwriter = csv.writer(csvfile)
-        csvwriter.writerow(["URL", "Response", "Internal Links", "External Links"])
+        csvwriter.writerow(["URL", "Response"])
         
         for url in urls:
             try:
@@ -70,16 +73,25 @@ def save_to_csv(urls):
                 print(f"{url} - {response.status_code}")
                 
                 internal_links, external_links = extract_links_from_url(url)
+                csvwriter.writerow([url, response.status_code])
                 
-                csvwriter.writerow([
-                    url, 
-                    response.status_code, 
-                    "\n".join(internal_links), 
-                    "\n".join(external_links)
-                ])
+                external_links_list.extend(external_links)
             except requests.RequestException as e:
                 print(f"{url} - Error: {e}")
-                csvwriter.writerow([url, "Error", "", ""])
+                csvwriter.writerow([url, "Error"])
+
+    with open("EXTERNAL.csv", "w", newline='') as csvfile:
+        csvwriter = csv.writer(csvfile)
+        csvwriter.writerow(["URL", "Response"])
+
+        for url in external_links_list:
+            try:
+                response = requests.get(url)
+                print(f"{url} - {response.status_code}")
+                csvwriter.writerow([url, response.status_code])
+            except requests.RequestException as e:
+                print(f"{url} - Error: {e}")
+                csvwriter.writerow([url, "Error"])
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
@@ -88,4 +100,4 @@ if __name__ == "__main__":
 
     xml_url = sys.argv[1]
     urls = extract_urls_from_xml(xml_url)
-    save_to_csv(urls)
+    save_to_csv_and_check_external(urls)
